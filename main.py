@@ -25,8 +25,6 @@ class LocalServer(BaseHTTPRequestHandler):
         keyboard = Controller()
         content_length = int(self.headers['Content-Length'])
         data = self.rfile.read(content_length).decode('utf-8')
-        if data == "&nbsp;":
-            data = " "
 
         if data == "init":
             for i in range(3):
@@ -34,48 +32,52 @@ class LocalServer(BaseHTTPRequestHandler):
                 time.sleep(1)
             keyboard.tap(Key.enter)
             print("Initialized.                                          ")
-        elif data == "end":
-            webServer.server_close()
-            print("Server stopped.")
-            sys.exit()
         else:
-            keyboard.tap(data)
+            if len(first_tap) == 0:
+                #set len to 1 (object has to be changed without assignment)
+                first_tap.append(None)
+                time.sleep(0.5)
+            time.sleep(wait_time)
+            #first argument that's given is the letter. The second one is amountRemaining.
+            split_data = data.split(' ')
+
+            if split_data[0] == "&nbsp;":
+                split_data[0] = " "
+
+            if split_data[0] != '':
+                keyboard.tap(split_data[0])
+
+            if len(split_data) > 1 and split_data[1] == '0':
+                webServer.server_close()
+                print("Server stopped.")
+                sys.exit()
 
 if __name__ == "__main__":
-    wait_time = 600.0 / int(input("How many inputs per 10 minutes would you like to achieve? "))
-
     JS_CODE = """
-    //utility function
-    const delay = ms => new Promise(res => setTimeout(res, ms));
+    const targetNode = document.getElementById("text_todo");
+    const config = { childList: true, subtree: true };
+
+    //this gets called whenever a correct key has been pressed on the page
+    const callback = (mutationsList, observer) => {
+        $.ajax({type:'POST', url:'http://localhost:8080', data:document.getElementById('text_todo').childNodes[0].innerHTML + ' ' + String(document.getElementById("amountRemaining").innerHTML), dataType:'text'});
+    }
+    const observer = new MutationObserver(callback);
+    observer.observe(targetNode, config);
 
     //initial signal
     $.ajax({type:'POST', url:'http://localhost:8080', data: 'init', dataType:'text'});
 
-    setTimeout(async function() {
-        //wait a tiny bit once
-        await delay(500);
-
-        //send char to press
+    //do this after 3 seconds
+    setTimeout(function() {
+        //send first char to press
         $.ajax({type:'POST', url:'http://localhost:8080', data:document.getElementById('text_todo').childNodes[0].innerHTML, dataType:'text'});
-        //again wait a tiny bit so the remaining amount loads
-        await delay(200);
-
-        //total only becomes visible after pressing the first character
-        var total = await parseInt(document.getElementById('amountRemaining').innerHTML)+1;
-        console.log('total is ' + total);
-
-        //input loop
-        for (var i = 1; i < total; i++) {
-            await delay(""" + str(wait_time*1000) + """);
-
-            //send char to press
-            $.ajax({type:'POST', url:'http://localhost:8080', data:document.getElementById('text_todo').childNodes[0].innerHTML, dataType:'text'});
-        }
-
-        //end signal
-        $.ajax({type:'POST', url:'http://localhost:8080', data: 'end', dataType:'text'});
     }, 3000);
     """
+
+    first_tap = []
+    wait_time = 600.0 / int(input("How many inputs per 10 minutes would you like to achieve? (-1 for no delay) "))
+    if wait_time < 0:
+        wait_time = 0;
 
     webServer = HTTPServer((HOST_NAME, SERVER_PORT), LocalServer)
     print(f"Server started at http://{HOST_NAME}:{SERVER_PORT}")
