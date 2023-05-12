@@ -18,6 +18,23 @@ from pynput.keyboard import Key, Controller
 HOST_NAME = "localhost"
 SERVER_PORT = 8080
 
+class Current():
+    letter: str
+    amount_left: int
+
+    def __init__(self, s, n):
+        self.letter = s
+        self.amount_left = n
+
+class OnlyOnce():
+    valid: bool
+
+    def __init__(self):
+        self.valid = True
+
+    def make_invalid(self):
+        self.valid = False
+
 class LocalServer(BaseHTTPRequestHandler):
     """Server class."""
     def do_POST(self):
@@ -33,21 +50,24 @@ class LocalServer(BaseHTTPRequestHandler):
             keyboard.tap(Key.enter)
             print("Initialized.                                          ")
         else:
-            if len(first_tap) == 0:
+            if first_tap.valid:
                 #set len to 1 (object has to be changed without assignment)
-                first_tap.append(None)
+                first_tap.make_invalid()
                 time.sleep(0.5)
             time.sleep(wait_time)
             #first argument that's given is the letter. The second one is amountRemaining.
             split_data = data.split(' ')
+            highlighted = Current(split_data[0], None)
+            if len(split_data) > 1:
+                highlighted.amount_left = split_data[1]
 
-            if split_data[0] == "&nbsp;":
-                split_data[0] = " "
+            if highlighted.letter == "&nbsp;":
+                highlighted.letter = " "
 
-            if split_data[0] != '':
-                keyboard.tap(split_data[0])
+            if highlighted.letter != '':
+                keyboard.tap(highlighted.letter)
 
-            if len(split_data) > 1 and split_data[1] == '0':
+            if highlighted.amount_left == '0':
                 webServer.server_close()
                 print("Server stopped.")
                 sys.exit()
@@ -74,7 +94,7 @@ if __name__ == "__main__":
     }, 3000);
     """
 
-    first_tap = []
+    first_tap = OnlyOnce()
     wait_time = 600.0 / int(input("How many inputs per 10 minutes would you like to achieve? (-1 for no delay) "))
     if wait_time < 0:
         wait_time = 0;
