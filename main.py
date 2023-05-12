@@ -18,9 +18,6 @@ from pynput.keyboard import Key, Controller
 HOST_NAME = "localhost"
 SERVER_PORT = 8080
 
-class Done(Exception):
-    """Gets raised once the program is done to stop it."""
-
 class LocalServer(BaseHTTPRequestHandler):
     """Server class."""
     def do_POST(self):
@@ -89,7 +86,7 @@ Finally, paste the code and hit enter, then focus back to the page within 3 seco
 
     try:
         webServer.serve_forever()
-    except (KeyboardInterrupt, Done):
+    except KeyboardInterrupt:
         pass
 
     webServer.server_close()
