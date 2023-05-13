@@ -20,7 +20,7 @@ SERVER_PORT = 8080
 
 class Current():
     letter: str
-    amount_left: int
+    amount_left: str
 
     def __init__(self, s, n):
         self.letter = s
