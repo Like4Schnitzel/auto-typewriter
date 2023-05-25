@@ -30,6 +30,13 @@ class OnlyOnce():
 class LocalServer(BaseHTTPRequestHandler):
     """Server class."""
     
+    def send_response(self, code, message=None):
+        """"Override without the log as to not clog up the terminal."""
+        #self.log_request(code)
+        self.send_response_only(code, message)
+        self.send_header('Server', self.version_string())
+        self.send_header('Date', self.date_time_string())
+
     def send_ok(self):
         self.send_response(200, "ok")       
         self.send_header('Access-Control-Allow-Origin', '*')                
@@ -38,6 +45,9 @@ class LocalServer(BaseHTTPRequestHandler):
         self.end_headers()
     
     def do_OPTIONS(self):           
+        self.send_ok()
+
+    def do_GET(self):
         self.send_ok()
     
     def do_POST(self):
@@ -67,7 +77,7 @@ class LocalServer(BaseHTTPRequestHandler):
 
             keyboard.tap(c)
             self.send_ok()
-            print(f"Tapped \"{c}\"")
+            #print(f"Tapped \"{c}\"")
 
         if last_batch:
             webServer.server_close()
@@ -121,7 +131,7 @@ if __name__ == "__main__":
     pyperclip.copy(JS_CODE)
     print("Code has been copied to your clipboard.\nPlease navigate to the page of your lesson.\n\
 Open developer tools using ctrl+shift+i, then navigate to the Console tab.\n\
-Finally, paste the code and hit enter, then focus back to the page within 3 seconds.")
+Finally, paste the code and hit enter, then focus the page and press any button to make the box vanish.")
 
     try:
         webServer.serve_forever()
