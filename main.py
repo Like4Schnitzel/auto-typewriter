@@ -18,14 +18,6 @@ from pynput.keyboard import Key, Controller
 HOST_NAME = "localhost"
 SERVER_PORT = 8080
 
-class Current():
-    letter: str
-    amount_left: str
-
-    def __init__(self, s, n):
-        self.letter = s
-        self.amount_left = n
-
 class OnlyOnce():
     valid: bool
 
@@ -37,63 +29,88 @@ class OnlyOnce():
 
 class LocalServer(BaseHTTPRequestHandler):
     """Server class."""
+    
+    def send_ok(self):
+        self.send_response(200, "ok")       
+        self.send_header('Access-Control-Allow-Origin', '*')                
+        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS, GET')
+        self.send_header("Access-Control-Allow-Headers", "X-Requested-With")        
+        self.end_headers()
+    
+    def do_OPTIONS(self):           
+        self.send_ok()
+    
     def do_POST(self):
         """Gets called whenever data is given through js."""
-        keyboard = Controller()
+
         content_length = int(self.headers['Content-Length'])
         data = self.rfile.read(content_length).decode('utf-8')
 
-        if data == "init":
-            for i in range(3):
-                print("You have " + str(3-i) + " seconds to focus the page again...", end="\r")
-                time.sleep(1)
-            keyboard.tap(Key.enter)
-            print("Initialized.                                          ")
+        #getting amount left from data
+        amount_left = data[data.rfind(" ")+1:]
+        data = data[:-(len(amount_left)+1)]
+        if amount_left == "":
+            amount_left = -1
         else:
-            if first_tap.valid:
-                #set len to 1 (object has to be changed without assignment)
-                first_tap.make_invalid()
-                time.sleep(0.5)
+            amount_left = int(amount_left)
+        last_batch = amount_left == len(data)
+
+        print(f"Using \"{data}\" as data.")
+
+        if first_tap.valid:
+            print("Initialized.")
+            first_tap.make_invalid()
+            time.sleep(0.5)
+
+        for c in data:
             time.sleep(wait_time)
-            #first argument that's given is the letter. The second one is amountRemaining.
-            split_data = data.split(' ')
-            highlighted = Current(split_data[0], None)
-            if len(split_data) > 1:
-                highlighted.amount_left = split_data[1]
 
-            if highlighted.letter == "&nbsp;":
-                highlighted.letter = " "
+            keyboard.tap(c)
+            self.send_ok()
+            print(f"Tapped \"{c}\"")
 
-            if highlighted.letter != '':
-                keyboard.tap(highlighted.letter)
-
-            if highlighted.amount_left == '0':
-                webServer.server_close()
-                print("Server stopped.")
-                sys.exit()
+        if last_batch:
+            webServer.server_close()
+            self.send_ok()
+            print("Server stopped.")
+            sys.exit()
 
 if __name__ == "__main__":
     JS_CODE = """
-    const targetNode = document.getElementById("text_todo");
-    const config = { childList: true, subtree: true };
+    function sendData() {
+        let toSend = document.getElementById('text_todo').childNodes[0].innerHTML + upcoming.innerHTML;
+        toSend = toSend.replaceAll("&nbsp;", " ");
+        count = toSend.length;
+        toSend += " " + document.getElementById("amountRemaining").innerHTML;
+        $.ajax({type:'POST', url:'http://localhost:8080', data:toSend, dataType:'text'});
+        console.log("Sent \\"" + toSend + "\\"");
+    }
 
+    const upcoming = document.getElementById('text_todo').childNodes[1];
+    const startBox = document.children[0].children[1].children[6];
+    const config = { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] };
+
+    //this gets called upon the vanishing of the initial ui box
+    const init = (mutationsList, observer) => {
+        sendData();
+    }
+
+    const initObserver = new MutationObserver(init);
+    initObserver.observe(startBox, config);
+
+    var count;
     //this gets called whenever a correct key has been pressed on the page
     const callback = (mutationsList, observer) => {
-        $.ajax({type:'POST', url:'http://localhost:8080', data:document.getElementById('text_todo').childNodes[0].innerHTML + ' ' + String(document.getElementById("amountRemaining").innerHTML), dataType:'text'});
+        count--;
+        if (count == 0) {
+            sendData();
+        }
     }
     const observer = new MutationObserver(callback);
-    observer.observe(targetNode, config);
-
-    //initial signal
-    $.ajax({type:'POST', url:'http://localhost:8080', data: 'init', dataType:'text'});
-
-    //do this after 3 seconds
-    setTimeout(function() {
-        //send first char to press
-        $.ajax({type:'POST', url:'http://localhost:8080', data:document.getElementById('text_todo').childNodes[0].innerHTML, dataType:'text'});
-    }, 3000);
+    observer.observe(upcoming, config);
     """
 
+    keyboard = Controller()
     first_tap = OnlyOnce()
     wait_time = 600.0 / int(input("How many inputs per 10 minutes would you like to achieve? (-1 for no delay) "))
     if wait_time < 0:
