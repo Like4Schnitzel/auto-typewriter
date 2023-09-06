@@ -97,7 +97,7 @@ if __name__ == "__main__":
     }
 
     const upcoming = document.getElementById('text_todo').childNodes[1];
-    const startBox = document.children[0].children[1].children[6];
+    const startBox = document.querySelectorAll(".ui-dialog")[1];
     const config = { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] };
 
     //this gets called upon the vanishing of the initial ui box
