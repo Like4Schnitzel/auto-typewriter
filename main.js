@@ -6,7 +6,7 @@ do {
     charsPerTenMins = parseInt(prompt("How many characters per 10 minutes would you like to achieve?"));
 } while (charsPerTenMins === NaN);
 const msToWait = 600000 / charsPerTenMins;
-const currentCharacterSpan = document.querySelector("#text_todo").children[0];
+const currentCharacterSpan = document.querySelector("#text_todo_1").children[0];
 
 //this gets called upon the vanishing of the initial ui box
 const init = (mutations, observer) => {
